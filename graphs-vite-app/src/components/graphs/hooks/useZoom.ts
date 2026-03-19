@@ -21,61 +21,68 @@ export function useZoom(pointCount: number) {
     setView({ x0: 0, x1: axisMax })
   }, [axisMax])
 
+  /** Wheel / buttons: zoom around relX ∈ [0,1] along the X window, clamped to data range. */
   const zoomAt = useCallback(
     (relX: number, deltaY: number) => {
       if (pointCount <= 1 && dataMaxIdx <= 0) return
-      const { x0, x1 } = view
-      const span = Math.max(x1 - x0, 1e-9)
-      const anchor = x0 + clamp(relX, 0, 1) * span
-      const factor = deltaY > 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
-      let newSpan = span * factor
-      const maxSpan = axisMax + 1e-6
-      newSpan = clamp(newSpan, MIN_SPAN, maxSpan)
-      const left = anchor - clamp(relX, 0, 1) * newSpan
-      let nx0 = left
-      let nx1 = left + newSpan
-      if (nx0 < 0) {
-        nx1 -= nx0
-        nx0 = 0
-      }
-      if (nx1 > axisMax) {
-        const over = nx1 - axisMax
-        nx0 -= over
-        nx1 = axisMax
-        if (nx0 < 0) nx0 = 0
-      }
-      if (nx1 - nx0 < MIN_SPAN) {
-        const mid = (nx0 + nx1) / 2
-        nx0 = clamp(mid - MIN_SPAN / 2, 0, axisMax - MIN_SPAN)
-        nx1 = nx0 + MIN_SPAN
-      }
-      setView({ x0: nx0, x1: nx1 })
+      const rx = clamp(relX, 0, 1)
+      setView((prev) => {
+        const { x0, x1 } = prev
+        const span = Math.max(x1 - x0, 1e-9)
+        const anchor = x0 + rx * span
+        const factor = deltaY > 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
+        let newSpan = span * factor
+        const maxSpan = axisMax + 1e-6
+        newSpan = clamp(newSpan, MIN_SPAN, maxSpan)
+        const left = anchor - rx * newSpan
+        let nx0 = left
+        let nx1 = left + newSpan
+        if (nx0 < 0) {
+          nx1 -= nx0
+          nx0 = 0
+        }
+        if (nx1 > axisMax) {
+          const over = nx1 - axisMax
+          nx0 -= over
+          nx1 = axisMax
+          if (nx0 < 0) nx0 = 0
+        }
+        if (nx1 - nx0 < MIN_SPAN) {
+          const mid = (nx0 + nx1) / 2
+          nx0 = clamp(mid - MIN_SPAN / 2, 0, axisMax - MIN_SPAN)
+          nx1 = nx0 + MIN_SPAN
+        }
+        return { x0: nx0, x1: nx1 }
+      })
     },
-    [view, axisMax, pointCount, dataMaxIdx],
+    [axisMax, pointCount, dataMaxIdx],
   )
 
+  /** Drag pan: shift X window in data space proportional to pixel delta. */
   const panByPixels = useCallback(
     (deltaPx: number, plotWidth: number) => {
       if (plotWidth <= 0) return
-      const { x0, x1 } = view
-      const span = x1 - x0
-      const dataPerPx = span / plotWidth
-      const shift = -deltaPx * dataPerPx
-      let nx0 = x0 + shift
-      let nx1 = x1 + shift
-      if (nx0 < 0) {
-        nx1 -= nx0
-        nx0 = 0
-      }
-      if (nx1 > axisMax) {
-        const over = nx1 - axisMax
-        nx0 -= over
-        nx1 = axisMax
-        if (nx0 < 0) nx0 = 0
-      }
-      setView({ x0: nx0, x1: nx1 })
+      setView((prev) => {
+        const { x0, x1 } = prev
+        const span = x1 - x0
+        const dataPerPx = span / plotWidth
+        const shift = -deltaPx * dataPerPx
+        let nx0 = x0 + shift
+        let nx1 = x1 + shift
+        if (nx0 < 0) {
+          nx1 -= nx0
+          nx0 = 0
+        }
+        if (nx1 > axisMax) {
+          const over = nx1 - axisMax
+          nx0 -= over
+          nx1 = axisMax
+          if (nx0 < 0) nx0 = 0
+        }
+        return { x0: nx0, x1: nx1 }
+      })
     },
-    [view, axisMax],
+    [axisMax],
   )
 
   const zoomIn = useCallback(() => {

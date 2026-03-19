@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { PageContainer, PageHeader, Button } from '@/components/ui'
 import { TimeSeriesChart, generateTestTimeSeries } from '@/components/graphs'
 
+/** Demo shell: fixed synthetic 60×120 data, toggle area fill under lines. */
 export default function App() {
   const data = useMemo(() => generateTestTimeSeries(), [])
   const [showShadows, setShowShadows] = useState(true)

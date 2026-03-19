@@ -1,3 +1,8 @@
+/**
+ * Multi-series time-series chart: responsive width, X/Y zoom & pan, legend, tooltips.
+ * Y-domain auto-fits visible X-range (plus padding); wheel with Shift zooms Y.
+ * Filter buttons hide series by rules on the current X window (gaps / top-3 min / max).
+ */
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { TimeSeriesChartProps, TooltipState } from './types'
 import { ChartCanvas } from './ChartCanvas'

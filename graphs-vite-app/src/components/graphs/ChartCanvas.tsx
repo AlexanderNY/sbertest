@@ -1,3 +1,7 @@
+/**
+ * SVG rendering for the plot area: grid, axes ticks, line paths and optional area fill.
+ * Splits each series on nulls into continuous segments so gaps do not connect with lines.
+ */
 import { useCallback, useId, useMemo, useRef } from 'react'
 import type { TimeSeries, TooltipState, ViewWindow } from './types'
 import { CHART_MARGINS, getPlotSize } from './chart-margins'
@@ -61,13 +65,24 @@ export function ChartCanvas({
   showAreaFill,
 }: ChartCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
-  const clipId = useId().replace(/:/g, '')
+  const uid = useId().replace(/:/g, '')
+  const clipId = `${uid}-clip`
+  const gridPatternId = `${uid}-grid`
   const { plotW, plotH } = getPlotSize(width, height)
   const { left, top } = CHART_MARGINS
   const plotBottom = top + plotH
   const isDense = series.length > 36
   const lineStroke = isDense ? 1 : 2
   const areaOpacity = isDense ? 0.06 : 0.18
+
+  /** One splitSegments() per visible series (was twice: areas + lines). */
+  const visiblePrepared = useMemo(
+    () =>
+      series
+        .map((s, sIdx) => ({ s, sIdx, segments: splitSegments(s.values) }))
+        .filter((row) => !hiddenIds.has(row.s.id)),
+    [series, hiddenIds],
+  )
 
   const xScale = useMemo(
     () => linearScale([view.x0, view.x1], [left, left + plotW]),
@@ -169,7 +184,7 @@ export function ChartCanvas({
         <clipPath id={clipId}>
           <rect x={left} y={top} width={plotW} height={plotH} />
         </clipPath>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+        <pattern id={gridPatternId} width="40" height="40" patternUnits="userSpaceOnUse">
           <path
             d="M 40 0 L 0 0 0 40"
             fill="none"
@@ -183,15 +198,15 @@ export function ChartCanvas({
         y={top}
         width={plotW}
         height={plotH}
-        fill="url(#grid)"
+        fill={`url(#${gridPatternId})`}
         className="stroke-slate-300 dark:stroke-slate-600"
         strokeWidth="1"
       />
 
-      {yTicks.map((t) => {
+      {yTicks.map((t, yi) => {
         const y = yScale(t)
         return (
-          <g key={t}>
+          <g key={`y-${yi}-${t}`}>
             <line
               x1={left}
               y1={y}
@@ -214,10 +229,10 @@ export function ChartCanvas({
         )
       })}
 
-      {xTicks.map((t) => {
+      {xTicks.map((t, xi) => {
         const x = xScale(t)
         return (
-          <g key={t}>
+          <g key={`x-${xi}-${t}`}>
             <line
               x1={x}
               y1={top}
@@ -241,10 +256,8 @@ export function ChartCanvas({
 
       <g clipPath={`url(#${clipId})`}>
         {showAreaFill &&
-          series.map((s, sIdx) => {
-            if (hiddenIds.has(s.id)) return null
+          visiblePrepared.map(({ s, sIdx, segments }) => {
             const color = getSeriesColor(sIdx, s.color)
-            const segments = splitSegments(s.values)
             return segments.map((seg, segIdx) => {
               const pts = seg.map((p) => ({ x: xScale(p.i), y: yScale(p.v) }))
               const lineD = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`).join(' ')
@@ -262,10 +275,8 @@ export function ChartCanvas({
               )
             })
           })}
-        {series.map((s, sIdx) => {
-          if (hiddenIds.has(s.id)) return null
+        {visiblePrepared.map(({ s, sIdx, segments }) => {
           const color = getSeriesColor(sIdx, s.color)
-          const segments = splitSegments(s.values)
           return segments.map((seg, segIdx) => {
             const d = seg
               .map((p, i) => {
