@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: always
+
+javatest:
+  schedule:
+    enabled: true
+    initial-delay-ms: 5000
+    fixed-delay-ms: 8000
+    cpu-ms: 8000
+    memory-mb: 48
+    memory-hold-seconds: 15
+    thread-count: 24
+    thread-duration-ms: 12000
+
+logging:
+  level:
+    root: INFO
+    com.javatest: INFO
